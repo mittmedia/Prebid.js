@@ -7,7 +7,6 @@ const VERSION = '1.0';
 
 export const spec = {
   code: BIDDER_CODE,
-  userSync: [],
 
   /**
    * Determines whether or not the given bid request is valid.
@@ -22,6 +21,8 @@ export const spec = {
    * referrer:    Referrer url                        Optional.
    * bidUrl:      Bidding endpoint                    Optional.
    * seats:       List of bidders and  seats          Optional. {"bidder name": ["seat 1", "seat 2"], ...}
+   * deviceId:    Device id if available              Optional.
+   * ifa:         Advertising ID                      Optional.
    *
    * @param {BidRequest} bid The bid params to validate.
    * @return boolean True if this is a valid bid, and false otherwise.
@@ -45,6 +46,9 @@ export const spec = {
     let url = bidRequests.find(hasUrl);
     let test = bidRequests.find(hasTestParam);
     let seats = bidRequests.find(hasSeatsParam);
+    let deviceId = bidRequests.find(hasDeviceIdParam);
+    let ifa = bidRequests.find(hasIfaParam);
+    let tid = bidRequests.find(hasTidParam);
     bidUrl = bidUrl ? bidUrl.params.bidUrl : URL;
     url = url ? url.params.url : utils.getTopWindowUrl();
     test = test ? test.params.test : undefined;
@@ -58,6 +62,9 @@ export const spec = {
       referrer: referrer ? referrer.params.referrer : undefined,
       test: test,
       seats: seats ? seats.params.seats : undefined,
+      deviceId: deviceId ? deviceId.params.deviceId : undefined,
+      ifa: ifa ? ifa.params.ifa : undefined,
+      tid: tid ? tid.params.tid : undefined,
       version: VERSION,
       adRequests: [...adRequests]
     };
@@ -89,21 +96,22 @@ export const spec = {
         ttl: ad.ttl,
         creativeId: ad.creativeId,
         netRevenue: true,
-        currency: serverResponse.currency
+        currency: serverResponse.body.currency
       };
 
       bidResponses.push(bidResponse);
     });
 
-    this.userSync = serverResponse.body.pixels || [];
-
     return bidResponses;
   },
 
-  getUserSyncs: function(syncOptions) {
-    let syncList = [];
+  getUserSyncs: function(syncOptions, serverResponses) {
+    if (serverResponses.length == 0) return [];
 
-    this.userSync.forEach(function(sync) {
+    let syncList = [];
+    let userSync = serverResponses[0].body.pixels || [];
+
+    userSync.forEach(function(sync) {
       if (syncOptions.pixelEnabled && sync.type == 'Redirect') {
         syncList.push({type: 'image', url: sync.url});
       }
@@ -147,6 +155,18 @@ function hasTestParam(bid) {
 
 function hasSeatsParam(bid) {
   return !!bid.params.seats;
+}
+
+function hasDeviceIdParam(bid) {
+  return !!bid.params.deviceId;
+}
+
+function hasIfaParam(bid) {
+  return !!bid.params.ifa;
+}
+
+function hasTidParam(bid) {
+  return !!bid.params.tid;
 }
 
 function bidToAdRequest(bid) {
